@@ -1,0 +1,64 @@
+# AquaGuard — RAS Fish Health Monitoring Chatbot
+# Requirements file for the full project
+#
+# Install all at once:
+#   pip install -r requirements.txt
+#
+# Or install in stages (recommended for first setup):
+#   Stage 1 — core:   pip install torch transformers accelerate
+#   Stage 2 — server: pip install flask flask-cors
+#   Stage 3 — rag:    pip install langchain langchain-community langchain-chroma langchain-text-splitters langchain-huggingface chromadb sentence-transformers pypdf
+#   Stage 4 — utils:  pip install datasets peft trl huggingface_hub psutil paho-mqtt sentencepiece
+
+# ── Core model inference ──────────────────────────────────────────────────────
+torch>=2.1.0
+transformers>=4.51.0
+accelerate>=0.27.0
+
+# ── HuggingFace Hub (upload/download models and datasets) ────────────────────
+huggingface_hub>=0.21.0
+datasets>=2.18.0
+
+# ── Fine-tuning (QLoRA) ───────────────────────────────────────────────────────
+peft>=0.10.0
+trl>=0.8.0
+
+# ── Chat API server ───────────────────────────────────────────────────────────
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# ── RAG (document retrieval) ──────────────────────────────────────────────────
+langchain>=0.2.0
+langchain-community>=0.2.0
+langchain-chroma>=0.1.0
+langchain-text-splitters>=0.2.0
+langchain-huggingface>=0.0.3
+chromadb>=0.5.0
+sentence-transformers>=2.7.0
+pypdf>=4.0.0
+
+# ── Tokenizer support (Mistral / MiniCPM based models) ───────────────────────
+sentencepiece>=0.2.0
+
+# ── Sensor logging and MQTT ───────────────────────────────────────────────────
+paho-mqtt>=2.0.0
+
+# ── System monitoring ─────────────────────────────────────────────────────────
+psutil>=5.9.0
+
+# ── Optional: voice agent (install separately when ready) ────────────────────
+# openai-whisper>=20231117
+# sounddevice>=0.4.6
+# numpy>=1.26.0
+# pyttsx3>=2.90
+
+# ── Optional: Atlas Scientific sensor reading (Raspberry Pi only) ─────────────
+# smbus2>=0.4.3
+
+# ── Notes ─────────────────────────────────────────────────────────────────────
+# torch install varies by system — if the above fails use:
+#   CPU only:  pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   CUDA 12.1: pip install torch --index-url https://download.pytorch.org/whl/cu121
+#
+# On Windows, smbus2 is not available (Raspberry Pi Linux only)
+# Voice packages are commented out — uncomment when starting Step 5 (voice agent)
