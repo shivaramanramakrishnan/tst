@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AquaGuard — Chat</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:          #080c0f;
+  --panel:       #0d1318;
+  --surface:     #111820;
+  --border:      #1e2d3a;
+  --border-hi:   #2a4055;
+  --teal:        #00d4aa;
+  --teal-dim:    rgba(0,212,170,.08);
+  --teal-glow:   rgba(0,212,170,.25);
+  --amber:       #f59e0b;
+  --red:         #ef4444;
+  --green:       #22c55e;
+  --orange:      #f97316;
+  --text:        #cdd6e0;
+  --muted:       #4a6070;
+  --muted2:      #2a3d4a;
+  --user-bg:     #0f1e28;
+  --bot-bg:      #0a1520;
+  --normal-c:    #22c55e;
+  --watch-c:     #f59e0b;
+  --concern-c:   #f97316;
+  --critical-c:  #ef4444;
+  --font-mono:   'IBM Plex Mono', monospace;
+  --font-sans:   'IBM Plex Sans', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+}
+
+/* scanline overlay */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.03) 2px,
+    rgba(0,0,0,.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── topbar ── */
+.topbar {
+  height: 52px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 14px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.topbar-logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-mark {
+  width: 28px; height: 28px;
+  border: 1.5px solid var(--teal);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  color: var(--teal);
+  box-shadow: 0 0 8px var(--teal-glow), inset 0 0 8px var(--teal-dim);
+  position: relative;
+}
+.logo-mark::after {
+  content: '';
+  position: absolute;
+  width: 6px; height: 6px;
+  background: var(--teal);
+  border-radius: 50%;
+  bottom: -3px; right: -3px;
+  animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.logo-text {
+  font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+  letter-spacing: 2px; color: var(--text);
+}
+.logo-sub {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 1px;
+}
+
+.topbar-divider {
+  width: 1px; height: 24px;
+  background: var(--border); margin: 0 4px;
+}
+
+.status-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted);
+  cursor: default;
+  transition: border-color .2s;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  transition: background .3s, box-shadow .3s;
+}
+.status-pill.online { border-color: var(--teal); color: var(--teal); }
+.status-pill.online .status-dot {
+  background: var(--teal);
+  box-shadow: 0 0 6px var(--teal);
+  animation: pulse-dot 2s infinite;
+}
+.status-pill.error { border-color: var(--red); color: var(--red); }
+.status-pill.error .status-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+.icon-btn {
+  width: 32px; height: 32px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--muted);
+  cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.icon-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+
+/* ── layout ── */
+.layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── sidebar ── */
+.sidebar {
+  width: 240px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+@media(max-width:768px){ .sidebar{ display:none; } }
+
+.sidebar-section {
+  padding: 16px 14px 8px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 2px; color: var(--muted);
+  text-transform: uppercase;
+}
+
+.sensor-card {
+  margin: 0 16px 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: border-color .2s;
+}
+.sensor-card:hover { border-color: var(--border-hi); }
+.sensor-name {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.sensor-val {
+  font-family: var(--font-mono); font-size: 20px;
+  font-weight: 600; color: var(--teal);
+  line-height: 1;
+}
+.sensor-unit {
+  font-size: 11px; color: var(--muted); margin-left: 3px;
+}
+.sensor-bar {
+  height: 2px; background: var(--border);
+  border-radius: 1px; margin-top: 8px; overflow: hidden;
+}
+.sensor-bar-fill {
+  height: 100%; border-radius: 1px;
+  background: var(--teal);
+  transition: width .5s ease, background .3s;
+}
+
+.sensor-input-row {
+  display: flex; gap: 6px;
+  margin: 0 10px 5px;
+}
+.sensor-input {
+  flex: 1; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: var(--font-mono); font-size: 12px;
+  padding: 6px 8px; outline: none; transition: border-color .2s;
+}
+.sensor-input:focus { border-color: var(--teal); }
+.sensor-inject-btn {
+  background: var(--teal-dim); border: 1px solid var(--teal);
+  border-radius: 6px; color: var(--teal);
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 0 10px; cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+}
+.sensor-inject-btn:hover { background: var(--teal); color: var(--bg); }
+
+.sidebar-bottom {
+  margin-top: 12px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.model-tag {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+  line-height: 1.6;
+}
+.model-tag strong { color: var(--teal); font-weight: 600; }
+
+/* ── chat area ── */
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* welcome screen */
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 40px;
+  text-align: center;
+}
+.welcome-icon {
+  width: 72px; height: 72px;
+  border: 1.5px solid var(--teal);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 0 30px var(--teal-glow);
+  background: var(--teal-dim);
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+.welcome h2 {
+  font-size: 22px; font-weight: 600; color: var(--text);
+  font-family: var(--font-mono); letter-spacing: 1px;
+}
+.welcome p {
+  font-size: 14px; color: var(--muted); max-width: 380px; line-height: 1.7;
+}
+.quick-prompts {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  max-width: 500px; width: 100%;
+}
+.qp {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; cursor: pointer;
+  font-size: 12px; color: var(--muted); text-align: left;
+  transition: all .15s; font-family: var(--font-mono); line-height: 1.4;
+}
+.qp:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+
+/* messages scroll */
+.messages {
+  flex: 1; overflow-y: auto;
+  padding: 20px 0;
+  scroll-behavior: smooth;
+}
+.messages::-webkit-scrollbar { width: 4px; }
+.messages::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+.msg-wrapper {
+  padding: 6px 20px;
+  animation: msgIn .25s ease forwards;
+  opacity: 0; transform: translateY(8px);
+}
+@keyframes msgIn { to { opacity:1; transform:translateY(0); } }
+
+.msg {
+  max-width: 760px;
+  border-radius: 10px;
+  padding: 14px 18px;
+  line-height: 1.7;
+  font-size: 14px;
+  position: relative;
+}
+
+.msg.user {
+  background: var(--user-bg);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--teal);
+  margin-left: auto;
+  max-width: 580px;
+  font-family: var(--font-mono); font-size: 13px;
+}
+
+.msg.bot {
+  background: var(--bot-bg);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border-hi);
+}
+.msg.bot.sev-NORMAL   { border-left-color: var(--normal-c); }
+.msg.bot.sev-WATCH    { border-left-color: var(--watch-c); }
+.msg.bot.sev-CONCERN  { border-left-color: var(--concern-c); }
+.msg.bot.sev-CRITICAL { border-left-color: var(--critical-c); }
+
+.msg-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.msg-role {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 2px; color: var(--muted);
+  text-transform: uppercase;
+}
+.sev-badge {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 2px 8px; border-radius: 3px;
+  font-weight: 600; letter-spacing: 1px;
+  margin-left: auto;
+}
+.sev-NORMAL  { background: rgba(34,197,94,.12);  color: var(--normal-c);  border: 1px solid rgba(34,197,94,.3); }
+.sev-WATCH   { background: rgba(245,158,11,.12); color: var(--watch-c);   border: 1px solid rgba(245,158,11,.3); }
+.sev-CONCERN { background: rgba(249,115,22,.12); color: var(--concern-c); border: 1px solid rgba(249,115,22,.3); }
+.sev-CRITICAL{ background: rgba(239,68,68,.12);  color: var(--critical-c);border: 1px solid rgba(239,68,68,.3); }
+
+.msg-time {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--muted2); margin-left: auto;
+}
+
+.msg-body { color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.msg-body strong, .msg-body b { color: var(--teal); font-weight: 600; }
+
+/* severity keyword highlights inside response */
+.kw-NORMAL   { color: var(--normal-c);  font-weight: 600; }
+.kw-WATCH    { color: var(--watch-c);   font-weight: 600; }
+.kw-CONCERN  { color: var(--concern-c); font-weight: 600; }
+.kw-CRITICAL { color: var(--critical-c);font-weight: 600; }
+
+/* typing indicator */
+.typing-indicator {
+  display: flex; gap: 5px; align-items: center;
+  padding: 14px 18px;
+}
+.typing-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--teal); opacity: .4;
+  animation: typing 1.2s infinite;
+}
+.typing-dot:nth-child(2){ animation-delay:.2s }
+.typing-dot:nth-child(3){ animation-delay:.4s }
+@keyframes typing { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+
+/* ── input bar ── */
+.input-bar {
+  padding: 16px 20px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.input-row {
+  display: flex; gap: 10px; align-items: flex-end;
+  max-width: 900px; margin: 0 auto;
+}
+.input-wrap {
+  flex: 1; position: relative;
+}
+textarea#user-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: var(--font-mono); font-size: 13px;
+  padding: 12px 14px;
+  resize: none;
+  outline: none;
+  min-height: 46px; max-height: 160px;
+  line-height: 1.5;
+  transition: border-color .2s;
+  overflow-y: auto;
+}
+textarea#user-input:focus { border-color: var(--teal); }
+textarea#user-input::placeholder { color: var(--muted); }
+
+.send-btn {
+  width: 46px; height: 46px;
+  background: var(--teal);
+  border: none; border-radius: 10px;
+  color: var(--bg); font-size: 18px;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  box-shadow: 0 0 12px var(--teal-glow);
+}
+.send-btn:hover { background: #00f0c0; transform: translateY(-1px); box-shadow: 0 0 20px var(--teal-glow); }
+.send-btn:disabled { background: var(--muted2); box-shadow: none; cursor: not-allowed; transform: none; }
+
+.clear-btn {
+  height: 46px; padding: 0 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--muted);
+  font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+.input-hint {
+  text-align: center; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted2);
+}
+</style>
+</head>
+<body>
+
+<!-- topbar -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-mark">AG</div>
+    <div>
+      <div class="logo-text">AQUAGUARD</div>
+      <div class="logo-sub">RAS MONITOR</div>
+    </div>
+  </div>
+  <div class="topbar-divider"></div>
+  <div class="status-pill" id="status-pill">
+    <div class="status-dot"></div>
+    <span id="status-text">connecting...</span>
+  </div>
+  <div class="topbar-divider"></div>
+  <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted)" id="model-label">
+    AQUA-7B
+  </div>
+  <div class="topbar-actions">
+    <button class="icon-btn" title="Export chat" onclick="exportChat()">↓</button>
+    <button class="icon-btn" title="Clear chat"  onclick="clearChat()">✕</button>
+  </div>
+</div>
+
+<!-- layout -->
+<div class="layout">
+
+  <!-- sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">Live Sensors</div>
+
+    <div class="sensor-card" id="do-card">
+      <div class="sensor-name">DISSOLVED OXYGEN</div>
+      <div><span class="sensor-val" id="do-val">—</span><span class="sensor-unit">mg/L</span></div>
+      <div class="sensor-bar"><div class="sensor-bar-fill" id="do-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="sensor-card" id="temp-card">
+      <div class="sensor-name">TEMPERATURE</div>
+      <div><span class="sensor-val" id="temp-val">—</span><span class="sensor-unit">°C</span></div>
+      <div class="sensor-bar"><div class="sensor-bar-fill" id="temp-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:8px">Inject Reading</div>
+    <div style="margin:0 10px 6px;font-family:var(--font-mono);font-size:10px;color:var(--muted);line-height:1.6">
+      Enter sensor values to auto-fill a query
+    </div>
+    <div class="sensor-input-row">
+      <input class="sensor-input" id="inj-do"   placeholder="DO mg/L"  type="number" step="0.1" style="flex:1;min-width:0">
+      <input class="sensor-input" id="inj-temp" placeholder="Temp C"   type="number" step="0.1" style="flex:1;min-width:0">
+    </div>
+    <div class="sensor-input-row">
+      <input class="sensor-input" id="inj-turb"   placeholder="Turbidity NTU" type="number" step="1"    style="flex:1;min-width:0">
+    </div>
+    <div style="margin:0 10px 6px">
+      <select class="sensor-input" id="inj-camera" style="width:100%">
+        <option value="offline">Camera: offline</option>
+        <option value="available">Camera: available</option>
+        <option value="partial">Camera: partial</option>
+      </select>
+    </div>
+    <div class="sensor-input-row">
+      <input class="sensor-input" id="inj-tank"  placeholder="Tank ID"     type="text"   style="flex:1;min-width:0">
+      <input class="sensor-input" id="inj-hours" placeholder="Hrs offline" type="number" step="0.5" style="flex:1;min-width:0">
+    </div>
+    <div style="margin:0 10px 12px">
+      <button class="sensor-inject-btn" style="width:100%;padding:8px" onclick="injectSensorData()">
+        inject into chat
+      </button>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:4px">System</div>
+    <div style="margin:0 10px 8px;display:flex;flex-direction:column;gap:6px">
+      <button class="sensor-inject-btn" style="width:100%;padding:7px;text-align:left" onclick="runEval()">
+        run eval suite
+      </button>
+      <button class="sensor-inject-btn" style="width:100%;padding:7px;text-align:left" onclick="showEvalHistory()">
+        eval history
+      </button>
+      <button class="sensor-inject-btn" style="width:100%;padding:7px;text-align:left" onclick="showRagStatus()">
+        rag status
+      </button>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="model-tag">
+        <strong>AQUA-7B</strong><br>
+        Fraunhofer Model<br>
+        3M+ aquaculture Q&A pairs<br>
+        RAG: <span id="rag-status-label" style="color:#4a6070">checking...</span><br>
+        <span style="color:var(--muted)">localhost:5000</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- chat -->
+  <div class="chat-area">
+
+    <!-- welcome or messages -->
+    <div id="welcome-screen" class="welcome">
+      <div class="welcome-icon">🐟</div>
+      <h2>AQUAGUARD ONLINE</h2>
+      <p>Powered by AQUA-7B — trained on 3M+ aquaculture conversations. Ask about fish health, stress indicators, water quality, or tank anomalies.</p>
+      <div class="quick-prompts">
+        <div class="qp" onclick="quickSend('DO: 5.1 mg/L, Temp: 26°C. Camera offline. What should I do?')">
+          DO: 5.1 mg/L · Temp: 26°C<br>Camera offline
+        </div>
+        <div class="qp" onclick="quickSend('DO: 7.8 mg/L, Temp: 24°C. Camera shows one isolated fish near wall, lethargic, length ~30cm.')">
+          Isolated fish<br>Lethargic behaviour
+        </div>
+        <div class="qp" onclick="quickSend('DO: 4.2 mg/L, Temp: 27.5°C. Camera offline. DO dropping fast over last 20 minutes.')">
+          Critical DO drop<br>Fast deterioration
+        </div>
+        <div class="qp" onclick="quickSend('Fish count dropped from 200 to 187 overnight. DO: 7.0 mg/L, Temp: 25°C. Camera offline.')">
+          Overnight fish count<br>drop of 13 fish
+        </div>
+      </div>
+    </div>
+
+    <div class="messages" id="messages" style="display:none"></div>
+
+    <!-- input bar -->
+    <div class="input-bar">
+      <div class="input-row">
+        <button class="clear-btn" onclick="clearChat()">New chat</button>
+        <div class="input-wrap">
+          <textarea id="user-input"
+            placeholder="Describe tank conditions — e.g. DO: 5.2 mg/L, Temp: 26°C, camera offline..."
+            rows="1"
+            onkeydown="handleKey(event)"
+            oninput="autoResize(this)"></textarea>
+        </div>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send (Enter)">↑</button>
+      </div>
+      <div class="input-hint">Enter to send · Shift+Enter for new line · server must be running on localhost:5000</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── state ──────────────────────────────────────────────────────────────────
+const SERVER = 'http://localhost:5000';
+let history  = [];          // full conversation history for context
+let isWaiting = false;
+
+// ── server health check ────────────────────────────────────────────────────
+async function checkServer() {
+  const pill = document.getElementById('status-pill');
+  const txt  = document.getElementById('status-text');
+  try {
+    const r = await fetch(`${SERVER}/health`, { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    pill.className = 'status-pill online';
+    txt.textContent = `online · ${d.device || 'CPU'}`;
+    document.getElementById('model-label').textContent = 'AQUA-7B · ready';
+    const pv = document.getElementById('prompt-ver');
+    if (pv) pv.textContent = d.prompt_version || 'v?';
+    const rl = document.getElementById('rag-status-label');
+    if (rl) rl.textContent = d.rag_enabled ? 'enabled' : 'disabled';
+  } catch {
+    pill.className = 'status-pill error';
+    txt.textContent = 'server offline';
+    document.getElementById('model-label').textContent = 'run aqua7b_server.py first';
+  }
+}
+checkServer();
+setInterval(checkServer, 15000);
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function now() {
+  return new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+
+function detectSeverity(text) {
+  const t = text.toUpperCase();
+  if (/\bCRITICAL\b/.test(t)) return 'CRITICAL';
+  if (/\bCONCERN\b/.test(t))  return 'CONCERN';
+  if (/\bWATCH\b/.test(t))    return 'WATCH';
+  if (/\bNORMAL\b/.test(t))   return 'NORMAL';
+  return null;
+}
+
+function highlightText(text) {
+  return text
+    .replace(/\bCRITICAL\b/g, '<span class="kw-CRITICAL">CRITICAL</span>')
+    .replace(/\bCONCERN\b/g,  '<span class="kw-CONCERN">CONCERN</span>')
+    .replace(/\bWATCH\b/g,    '<span class="kw-WATCH">WATCH</span>')
+    .replace(/\bNORMAL\b/g,   '<span class="kw-NORMAL">NORMAL</span>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n(\d+\.\s)/g, '\n$1');
+}
+
+function esc(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showChatArea() {
+  document.getElementById('welcome-screen').style.display = 'none';
+  document.getElementById('messages').style.display = 'block';
+}
+
+function scrollBottom() {
+  const m = document.getElementById('messages');
+  m.scrollTop = m.scrollHeight;
+}
+
+// ── update sidebar sensors ─────────────────────────────────────────────────
+function updateSensorDisplay(doVal, tempVal) {
+  if (doVal !== null) {
+    document.getElementById('do-val').textContent = doVal;
+    const pct = Math.min(100, (doVal / 12) * 100);
+    const bar = document.getElementById('do-bar');
+    bar.style.width = pct + '%';
+    bar.style.background = doVal < 5 ? 'var(--critical-c)' :
+                           doVal < 6 ? 'var(--concern-c)' :
+                           doVal < 7 ? 'var(--watch-c)' : 'var(--teal)';
+    document.getElementById('do-card').style.borderColor =
+      doVal < 6 ? 'var(--concern-c)' : 'var(--border)';
+  }
+  if (tempVal !== null) {
+    document.getElementById('temp-val').textContent = tempVal;
+    const pct = Math.min(100, ((tempVal - 10) / 25) * 100);
+    const bar = document.getElementById('temp-bar');
+    bar.style.width = pct + '%';
+    bar.style.background = tempVal > 29 ? 'var(--critical-c)' :
+                           tempVal > 27 ? 'var(--concern-c)' :
+                           tempVal > 26 ? 'var(--watch-c)' : 'var(--teal)';
+    document.getElementById('temp-card').style.borderColor =
+      tempVal > 28 ? 'var(--concern-c)' : 'var(--border)';
+  }
+}
+
+function parseSensorsFromText(text) {
+  const doMatch   = text.match(/DO[:\s]+([0-9.]+)\s*mg/i);
+  const tempMatch = text.match(/[Tt]emp[:\s]+([0-9.]+)\s*°?C/i);
+  if (doMatch || tempMatch) {
+    updateSensorDisplay(
+      doMatch   ? parseFloat(doMatch[1])   : null,
+      tempMatch ? parseFloat(tempMatch[1]) : null
+    );
+  }
+}
+
+// ── render messages ────────────────────────────────────────────────────────
+function addUserMessage(text) {
+  showChatArea();
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg-wrapper';
+  div.innerHTML = `
+    <div class="msg user">
+      <div class="msg-header">
+        <span class="msg-role">operator</span>
+        <span class="msg-time">${now()}</span>
+      </div>
+      <div class="msg-body">${esc(text)}</div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+}
+
+function addBotMessage(text) {
+  const sev  = detectSeverity(text);
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg-wrapper';
+  div.innerHTML = `
+    <div class="msg bot ${sev ? 'sev-'+sev : ''}">
+      <div class="msg-header">
+        <span class="msg-role">aquaguard · aqua-7b</span>
+        ${sev ? `<span class="sev-badge sev-${sev}">${sev}</span>` : ''}
+        <span class="msg-time">${now()}</span>
+      </div>
+      <div class="msg-body">${highlightText(esc(text))}</div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function addTypingIndicator() {
+  showChatArea();
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg-wrapper';
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="msg bot" style="padding:14px 18px">
+      <div class="msg-header" style="margin-bottom:0;border:none;padding:0">
+        <span class="msg-role">aquaguard</span>
+      </div>
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+// ── send message ───────────────────────────────────────────────────────────
+async function sendMessage() {
+  const input   = document.getElementById('user-input');
+  const message = input.value.trim();
+  if (!message || isWaiting) return;
+
+  // update sidebar sensors from the query text
+  parseSensorsFromText(message);
+
+  input.value = '';
+  input.style.height = 'auto';
+  setWaiting(true);
+
+  addUserMessage(message);
+  addTypingIndicator();
+
+  // Add to history before sending
+  history.push({ role: 'user', content: message });
+
+  try {
+    const response = await fetch(`${SERVER}/chat`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ history: history.slice(0, -1), message })
+    });
+
+    removeTypingIndicator();
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    const data  = await response.json();
+    const reply = data.response || data.error || 'No response received';
+
+    // Add assistant reply to history
+    history.push({ role: 'assistant', content: reply });
+
+    addBotMessage(reply);
+
+  } catch (err) {
+    removeTypingIndicator();
+    history.pop(); // remove the user message from history on error
+
+    const msgs = document.getElementById('messages');
+    const div  = document.createElement('div');
+    div.className = 'msg-wrapper';
+    div.innerHTML = `
+      <div class="msg bot" style="border-left-color:var(--red)">
+        <div class="msg-header">
+          <span class="msg-role">system error</span>
+          <span class="msg-time">${now()}</span>
+        </div>
+        <div class="msg-body" style="color:var(--red)">
+Could not reach the model server.\n\nMake sure aqua7b_server.py is running:\n  python aqua7b_server.py\n\nError: ${err.message}
+        </div>
+      </div>`;
+    msgs.appendChild(div);
+    scrollBottom();
+  }
+
+  setWaiting(false);
+}
+
+// ── inject sensor data from sidebar ───────────────────────────────────────
+function injectSensorData() {
+  const doVal     = document.getElementById('inj-do').value;
+  const tempVal   = document.getElementById('inj-temp').value;
+  const turbVal   = document.getElementById('inj-turb').value;
+  const camera    = document.getElementById('inj-camera').value;
+  const tankId    = document.getElementById('inj-tank').value;
+  const hoursOff  = document.getElementById('inj-hours').value;
+
+  if (!doVal && !tempVal && !turbVal) {
+    alert('Enter at least one sensor value to inject.');
+    return;
+  }
+
+  let parts = [];
+  if (tankId)   parts.push(`Tank: ${tankId}`);
+  if (doVal)    parts.push(`DO: ${doVal} mg/L`);
+  if (tempVal)  parts.push(`Temp: ${tempVal}C`);
+  if (turbVal)  parts.push(`Turbidity: ${turbVal} NTU`);
+  
+  const cameraText = camera === 'offline'  ? 'Camera offline.' :
+                     camera === 'partial'  ? 'Camera available intermittently.' :
+                                             'Camera available.';
+  parts.push(cameraText);
+  if (hoursOff) parts.push(`Camera offline for ${hoursOff} hours.`);
+
+  const injected = parts.join(' ') + ' What is your assessment?';
+  document.getElementById('user-input').value = injected;
+  document.getElementById('user-input').focus();
+  autoResize(document.getElementById('user-input'));
+
+  if (doVal)   updateSensorDisplay(parseFloat(doVal), null);
+  if (tempVal) updateSensorDisplay(null, parseFloat(tempVal));
+}
+
+// ── eval suite ─────────────────────────────────────────────────────────────
+async function runEval() {
+  showChatArea();
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg-wrapper';
+  div.innerHTML = `
+    <div class="msg bot" style="border-left-color:var(--amber)">
+      <div class="msg-header">
+        <span class="msg-role">system — eval suite</span>
+        <span class="sev-badge" style="background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.3)">RUNNING</span>
+        <span class="msg-time">${now()}</span>
+      </div>
+      <div class="msg-body" id="eval-progress">Running 20 adversarial tests... check server terminal for progress. This takes several minutes.</div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+  try {
+    const r = await fetch(`${SERVER}/eval`, { signal: AbortSignal.timeout(600000) });
+    const d = await r.json();
+    const score = d.score || '?';
+    const rows = (d.results || []).map(res => {
+      const icon = res.passed ? '&#10003;' : '&#10007;';
+      const col  = res.passed ? '#22c55e' : '#ef4444';
+      const fails = Object.entries(res.checks || {})
+        .filter(([,v]) => !v).map(([k]) => k).join(', ');
+      return `<span style="color:${col}">${icon} ${res.id} [${res.category}]</span>${fails ? ' — ' + fails : ''}`;
+    }).join('');
+    document.getElementById('eval-progress').innerHTML =
+      `Score: <strong style="color:var(--teal)">${score}</strong> — Prompt ${d.prompt_version || ''}
+
+${rows}`;
+  } catch(e) {
+    document.getElementById('eval-progress').textContent = 'Eval failed: ' + e.message;
+  }
+  scrollBottom();
+}
+
+async function showEvalHistory() {
+  showChatArea();
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg-wrapper';
+  div.innerHTML = `
+    <div class="msg bot" style="border-left-color:var(--amber)">
+      <div class="msg-header">
+        <span class="msg-role">system — eval history</span>
+        <span class="msg-time">${now()}</span>
+      </div>
+      <div class="msg-body" id="eval-hist-body">Loading...</div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+  try {
+    const r = await fetch(`${SERVER}/eval/history`);
+    const d = await r.json();
+    if (!d.length) {
+      document.getElementById('eval-hist-body').textContent = 'No eval runs yet. Click "run eval suite" first.';
+      return;
+    }
+    const lines = d.slice().reverse().map(run =>
+      `${run.timestamp.slice(0,16).replace('T',' ')}  ${run.prompt_version || ''}  Score: ${run.score}`
+    ).join('');
+    document.getElementById('eval-hist-body').textContent = lines;
+  } catch(e) {
+    document.getElementById('eval-hist-body').textContent = 'Could not load history: ' + e.message;
+  }
+  scrollBottom();
+}
+
+async function showRagStatus() {
+  showChatArea();
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg-wrapper';
+  div.innerHTML = `
+    <div class="msg bot" style="border-left-color:var(--teal)">
+      <div class="msg-header">
+        <span class="msg-role">system — rag status</span>
+        <span class="msg-time">${now()}</span>
+      </div>
+      <div class="msg-body" id="rag-body">Loading...</div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+  try {
+    const r = await fetch(`${SERVER}/rag/status`);
+    const d = await r.json();
+    const docList = d.documents.length ? d.documents.join('') : '(none yet)';
+    document.getElementById('rag-body').textContent =
+      `RAG enabled: ${d.enabled}
+Docs folder: ${d.docs_folder}
+
+Documents loaded:
+  ${docList}
+
+To add documents: drop PDF or .txt files into
+${d.docs_folder}/
+then restart server or call POST /rag/reload`;
+  } catch(e) {
+    document.getElementById('rag-body').textContent = 'Could not load RAG status: ' + e.message;
+  }
+  scrollBottom();
+}
+
+// ── quick prompts ──────────────────────────────────────────────────────────
+function quickSend(text) {
+  document.getElementById('user-input').value = text;
+  autoResize(document.getElementById('user-input'));
+  sendMessage();
+}
+
+// ── keyboard ───────────────────────────────────────────────────────────────
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+// ── ui state ───────────────────────────────────────────────────────────────
+function setWaiting(val) {
+  isWaiting = val;
+  document.getElementById('send-btn').disabled = val;
+  document.getElementById('user-input').disabled = val;
+}
+
+// ── clear chat ─────────────────────────────────────────────────────────────
+function clearChat() {
+  history = [];
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('messages').style.display = 'none';
+  document.getElementById('welcome-screen').style.display = 'flex';
+  document.getElementById('do-val').textContent   = '—';
+  document.getElementById('temp-val').textContent = '—';
+  document.getElementById('do-bar').style.width   = '0%';
+  document.getElementById('temp-bar').style.width = '0%';
+  document.getElementById('do-card').style.borderColor   = 'var(--border)';
+  document.getElementById('temp-card').style.borderColor = 'var(--border)';
+}
+
+// ── export ─────────────────────────────────────────────────────────────────
+function exportChat() {
+  if (history.length === 0) return;
+  let out = `AquaGuard Chat Export — ${new Date().toLocaleString()}\n`;
+  out += '='.repeat(60) + '\n\n';
+  history.forEach(m => {
+    const role = m.role === 'user' ? 'OPERATOR' : 'AQUAGUARD';
+    out += `[${role}]\n${m.content}\n\n${'─'.repeat(40)}\n\n`;
+  });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([out], { type: 'text/plain' })),
+    download: `aquaguard_chat_${Date.now()}.txt`
+  });
+  a.click();
+}
+</script>
+</body>
+</html>
